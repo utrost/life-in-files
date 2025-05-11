@@ -1,3 +1,59 @@
-/target/
-*.log
+# === IntelliJ IDEA ===
 .idea/
+*.iml
+*.iws
+out/
+
+# === Maven ===
+/target/
+/**/target/
+
+# === Logs ===
+*.log
+*.tmp
+*.bak
+
+# === Runtime Files ===
+*.lif-index.json
+*.face-index.json
+face_*.md
+face_*.json
+*.ocr.md
+*.ocr.txt
+*.caption.md
+*.caption.json
+tag-index.json
+
+# === API Keys / Credentials ===
+*.secrets.json
+*.apikey
+.env
+.env.*
+
+# === Image/Media Artifacts (Output Sidecars) ===
+**/*_edited.jpg
+**/event.md
+**/index.md
+
+# === OS-Specific ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# === Backup Files ===
+*~
+*.swp
+*.swo
+
+# === User Annotations ===
+/docs/private-notes/
+/sample-input/private/
+/config-examples/secrets/
+
+# === GitHub Actions (build cache, etc.) ===
+.github/workflows/.cache/
+
+# === Optional Java Tools ===
+hs_err_pid*.log
+replay_pid*.log
+
