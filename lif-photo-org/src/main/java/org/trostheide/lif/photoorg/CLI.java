@@ -7,35 +7,53 @@ import org.apache.commons.cli.*;
 
 import java.io.File;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-public class CLI implements Callable<Integer> {
+/**
+ * CLI entrypoint for the lif-photo-org application.
+ *
+ * Usage example:
+ *   java -jar lif-photo-org.jar \
+ *     --source /path/to/source \
+ *     --target /path/to/target \
+ *     --mode raw \
+ *     --longside 3000 \
+ *     --since 2020-01-01T00:00:00Z \
+ *     --extensions jpg,png,cr2 \
+ *     --threads 4
+ */
+public class CLI {
     public static void main(String[] args) {
         int exitCode = new CLI().run(args);
         System.exit(exitCode);
     }
 
     private int run(String[] args) {
-        // --- 1) Define CLI options ---
+        // 1) Define CLI options
         Options options = new Options();
         options.addOption(Option.builder("s").longOpt("source")
                 .hasArg().argName("dir").required()
-                .desc("Source directory").build());
+                .desc("Source directory to scan").build());
         options.addOption(Option.builder("t").longOpt("target")
                 .hasArg().argName("dir").required()
-                .desc("Target directory").build());
+                .desc("Target directory for output").build());
         options.addOption(Option.builder("m").longOpt("mode")
                 .hasArg().argName("raw|jpeg").required()
-                .desc("Processing mode").build());
+                .desc("Processing mode: 'raw' (darktable) or 'jpeg' (ImageIO)").build());
         options.addOption(Option.builder().longOpt("longside")
-                .hasArg().argName("pixels").build());
+                .hasArg().argName("pixels")
+                .desc("Max length of the longer side (0 = no resize)").build());
         options.addOption(Option.builder().longOpt("since")
-                .hasArg().argName("ISO").build());
+                .hasArg().argName("ISO")
+                .desc("Only files modified on/after this ISO-8601 timestamp").build());
         options.addOption(Option.builder().longOpt("extensions")
-                .hasArg().argName("csv").build());
+                .hasArg().argName("csv")
+                .desc("Comma-separated file extensions to include (default = all common)").build());
         options.addOption(Option.builder().longOpt("threads")
                 .hasArg().argName("n")
-                .desc("Parallel threads (default = # cores)").build());
+                .desc("Number of parallel worker threads (default = #cores)").build());
         options.addOption("h", "help", false, "Show help");
 
         CommandLine cmd;
@@ -51,82 +69,83 @@ public class CLI implements Callable<Integer> {
             return 1;
         }
 
-        // --- 2) Extract params ---
-        File source = new File(cmd.getOptionValue("source"));
-        File target = new File(cmd.getOptionValue("target"));
-        String mode = cmd.getOptionValue("mode");
-        int longSide = Integer.parseInt(cmd.getOptionValue("longside", "0"));
-        String since = cmd.getOptionValue("since", null);
-        String exts = cmd.getOptionValue("extensions", null);
-        int threads = Integer.parseInt(cmd.getOptionValue(
-                "threads",
-                String.valueOf(Runtime.getRuntime().availableProcessors())
-        ));
-
-        System.out.println("Source: " + source);
-        System.out.println("Target: " + target);
-        System.out.println("Mode: "   + mode);
-        System.out.println("Long side: " + longSide);
-        System.out.println("Since: "  + since);
-        System.out.println("Extensions: " + exts);
-        System.out.println("Threads: " + threads);
-
-        // --- 3) Instantiate core components ---
-        LoggerService logger = new LoggerService(CLI.class);
-        DirectoryScanner scanner = new DirectoryScanner(logger, since, exts);
-        LifIndexManager indexMgr = new LifIndexManager(new File(target, ".lif-index.json"));
-
-        PhotoDecoder decoder;
-        try {
-            decoder = new DarktableDecoder();
-        } catch (Exception e) {
-            logger.error("Failed to init DarktableDecoder", e);
-            return 2;
-        }
-        ImageResizer resizer = new ThumbnailatorResizer();
-        PhotoProcessor processor = new PhotoProcessor(
-                source, target, mode, logger, indexMgr, decoder, resizer, longSide
+        // 2) Extract parameters
+        String sourceDir = cmd.getOptionValue("source");
+        String targetDir = cmd.getOptionValue("target");
+        String mode      = cmd.getOptionValue("mode");
+        int longSide     = Integer.parseInt(cmd.getOptionValue("longside", "0"));
+        String since     = cmd.getOptionValue("since", null);
+        String extsCsv   = cmd.getOptionValue("extensions", null);
+        int threads      = Integer.parseInt(
+                cmd.getOptionValue("threads",
+                        String.valueOf(Runtime.getRuntime().availableProcessors()))
         );
 
-        // --- 4) Scan for files ---
-        List<File> files = scanner.scan(source);
+        System.out.println("Source:     " + sourceDir);
+        System.out.println("Target:     " + targetDir);
+        System.out.println("Mode:       " + mode);
+        System.out.println("Long side:  " + longSide);
+        System.out.println("Since:      " + since);
+        System.out.println("Extensions: " + extsCsv);
+        System.out.println("Threads:    " + threads);
+
+        // 3) Initialize core services
+        LoggerService logger   = new LoggerService(CLI.class);
+        DirectoryScanner scanner = new DirectoryScanner(logger, since, extsCsv);
+        LifIndexManager indexMgr = new LifIndexManager(new File(targetDir, ".lif-index.json"));
+
+        // 4) Choose decoder implementation
+        PhotoDecoder decoder;
+        try {
+            if ("raw".equalsIgnoreCase(mode)) {
+                decoder = new DarktableDecoder(longSide);
+            } else if ("jpeg".equalsIgnoreCase(mode)) {
+                decoder = new JpegDecoder(longSide);
+            } else {
+                System.err.println("ERROR: Unknown mode '" + mode + "'");
+                return 2;
+            }
+        } catch (Exception e) {
+            logger.error("Failed to initialize decoder", e);
+            return 3;
+        }
+
+        // 5) Build the processor
+        PhotoProcessor processor = new PhotoProcessor(
+                new File(sourceDir),
+                new File(targetDir),
+                logger,
+                indexMgr,
+                decoder
+        );
+
+        // 6) Discover files
+        List<File> files = scanner.scan(new File(sourceDir));
         System.out.println("Found " + files.size() + " files to process.");
 
-        // --- 5) Setup ProgressTracker ---
+        // 7) Set up progress tracking
         ProgressTracker progress = new ProgressTracker(logger);
         progress.startTask(files.size());
 
-        // --- 6) Process in parallel ---
+        // 8) Process in parallel
         ExecutorService exec = Executors.newFixedThreadPool(threads);
         for (File f : files) {
             exec.submit(() -> {
-                try {
-                    processor.process(f);
-                } catch (Exception ex) {
-                    logger.error("Failed processing " + f.getAbsolutePath(), ex);
-                } finally {
-                    progress.step(1);
-                }
+                processor.process(f);
+                progress.step(1);
             });
         }
-
-        // --- 7) Shutdown & await completion ---
         exec.shutdown();
         try {
             exec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             logger.error("Interrupted while waiting for tasks to finish", ie);
+            return 4;
         }
         progress.onComplete();
 
         System.out.println("All done.");
-        return 0;
-    }
-
-    @Override
-    public Integer call() throws Exception {
-        // Unused; we use run() directly
         return 0;
     }
 }

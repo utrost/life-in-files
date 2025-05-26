@@ -4,45 +4,53 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Uses darktable-cli to convert a RAW file to JPEG,
- * but ensures only one conversion runs at a time.
+ * Uses darktable-cli to convert & resize images, preserving metadata.
+ * Adds extensive debug output to diagnose 2-byte outputs.
  */
 public class DarktableDecoder implements PhotoDecoder {
-    // single lock across all threads
     private static final Object DT_LOCK = new Object();
     private final Path tmpDir;
+    private final int longSide;
 
-    public DarktableDecoder() throws IOException {
-        tmpDir = Files.createTempDirectory("lif_darktable_");
+    public DarktableDecoder(int longSide) throws IOException {
+        this.longSide = longSide;
+        this.tmpDir = Files.createTempDirectory("lif_darktable_");
         tmpDir.toFile().deleteOnExit();
     }
 
-    @Override
-    public BufferedImage decode(File rawFile) throws Exception {
-        // everything inside this sync block runs one-at-a-time
+    /**
+     * Converts the given source file (RAW or JPEG) into a JPEG at exactly the given
+     * outputPath, applying the same width/height flags you have for resizing.
+     */
+    public void convertTo(File rawFile, Path outputPath) throws Exception {
         synchronized (DT_LOCK) {
-            // prepare output file
-            String base = rawFile.getName().replaceAll("\\.[^.]+$", "");
-            Path outFile = tmpDir.resolve(base + ".jpg");
-            Files.deleteIfExists(outFile);
+            // Build the command
+            List<String> cmd = new ArrayList<>();
+            cmd.add("darktable-cli");
+            cmd.add(rawFile.getAbsolutePath());
+            cmd.add(outputPath.toString());
+            if (longSide > 0) {
+                cmd.add("--width");  cmd.add(String.valueOf(longSide));
+                cmd.add("--height"); cmd.add(String.valueOf(longSide));
+            }
 
-            List<String> command = List.of(
-                    "darktable-cli",
-                    rawFile.getAbsolutePath(),
-                    outFile.toString()
-            );
-            // debug print
-            System.out.println("DEBUG: Executing: " +
-                    command.stream().map(arg -> "\"" + arg + "\"")
+            // Debug print
+            System.out.println("DEBUG [DarktableDecoder] raw→final cmd: " +
+                    cmd.stream().map(arg -> "\"" + arg + "\"")
                             .collect(Collectors.joining(" ")));
 
-            ProcessBuilder pb = new ProcessBuilder(command)
-                    .redirectErrorStream(true);
-            Process proc = pb.start();
+            // Ensure parent exists
+            Files.createDirectories(outputPath.getParent());
+
+            // Run
+            Process proc = new ProcessBuilder(cmd)
+                    .redirectErrorStream(true)
+                    .start();
             String output = new BufferedReader(
                     new InputStreamReader(proc.getInputStream()))
                     .lines().collect(Collectors.joining("\n"));
@@ -51,14 +59,12 @@ public class DarktableDecoder implements PhotoDecoder {
                 throw new IllegalStateException(
                         "darktable-cli failed (exit=" + exit + "):\n" + output);
             }
-
-            // load the JPEG
-            BufferedImage img = ImageIO.read(outFile.toFile());
-            if (img == null) {
-                throw new IllegalStateException(
-                        "Failed to read JPEG from " + outFile);
-            }
-            return img;
         }
+    }
+
+    @Override
+    public BufferedImage decode(File rawFile) throws Exception {
+        // No longer used for raw-mode; JPEG-mode still uses this
+        throw new UnsupportedOperationException("Use convertTo(...) for raw mode");
     }
 }
