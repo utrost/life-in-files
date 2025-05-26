@@ -70,16 +70,14 @@
                 <artifactId>commons-imaging</artifactId>
                 <version>${commons-imaging.version}</version>
             </dependency>
-            <dependency>
-                <groupId>info.picocli</groupId>
-                <artifactId>picocli</artifactId>
-                <version>${picocli.version}</version>
-            </dependency>
+
             <dependency>
                 <groupId>org.trostheide.lif</groupId>
                 <artifactId>lif-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
+
+
         </dependencies>
     </dependencyManagement>
 

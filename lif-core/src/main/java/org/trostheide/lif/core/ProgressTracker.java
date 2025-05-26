@@ -1,29 +1,67 @@
-// lif-core/src/main/java/org/trostheide/lif/core/ProgressTracker.java
 package org.trostheide.lif.core;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.concurrent.atomic.AtomicLong;
 
-import java.io.File;
-import java.io.IOException;
-
+/**
+ * Simple progress reporter that logs "completed/total (percent%)" on each step.
+ * Also prints directly to stdout so you can see progress even if Logback isn’t
+ * configured correctly.
+ */
 public class ProgressTracker {
-    private final long total;
-    private long current;
+    private final LoggerService logger;
+    private long totalWork;
+    private final AtomicLong completed = new AtomicLong(0);
 
-    public ProgressTracker(long totalWork) {
-        this.total = totalWork;
-        this.current = 0;
+    /**
+     * @param logger a LoggerService instance for output
+     */
+    public ProgressTracker(LoggerService logger) {
+        this.logger = logger;
     }
 
-    public void step(long work) {
-        current += work;
-        double pct = (total > 0) ? (current * 100.0 / total) : 100.0;
-        System.out.printf("Progress: %.2f%%%n", pct);
+    /**
+     * Initialize the tracker with the total units of work.
+     * Resets internal counters.
+     *
+     * @param totalWork total number of steps/tasks
+     */
+    public void startTask(long totalWork) {
+        this.totalWork = totalWork;
+        this.completed.set(0);
+        String msg = formatMessage(0);
+        logger.info(msg);
+        System.out.println(msg);
     }
 
-    public void complete() {
-        System.out.println("Progress: 100% (complete)");
+    /**
+     * Advance the completed count by the given amount and log progress.
+     *
+     * @param count number of tasks just completed (often 1)
+     */
+    public void step(long count) {
+        long done = this.completed.addAndGet(count);
+        String msg = formatMessage(done);
+        logger.info(msg);
+        System.out.println(msg);
+    }
+
+    /**
+     * Call when all work is done to log the final 100% message.
+     */
+    public void onComplete() {
+        this.completed.set(this.totalWork);
+        String msg = formatMessage(this.totalWork);
+        logger.info(msg);
+        System.out.println(msg);
+    }
+
+    /**
+     * Formats the progress message.
+     */
+    private String formatMessage(long done) {
+        int percent = totalWork > 0
+                ? (int)((done * 100) / totalWork)
+                : 100;
+        return String.format("[Progress] %d/%d processed (%d%%)", done, totalWork, percent);
     }
 }
-
