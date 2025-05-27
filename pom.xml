@@ -12,6 +12,7 @@
     <modules>
         <module>lif-core</module>
         <module>lif-photo-org</module>
+        <module>lif-photo-tagging</module>
     </modules>
 
     <properties>
@@ -95,5 +96,15 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <release>17</release>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 </project>
