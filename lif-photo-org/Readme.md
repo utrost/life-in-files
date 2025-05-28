@@ -94,12 +94,15 @@ java -jar lif-photo-org/target/lif-photo-org-0.1.0-SNAPSHOT-jar-with-dependencie
   --mode raw \
   --longside 3000 \
   --threads 4
+  --darktable-path "/Applications/darktable.app/Contents/MacOS/darktable-cli" \
+  ```
 --source: root folder containing your RAW/JPEG images
 --target: empty (or existing) folder where processed JPEGs will be written
 --mode: raw to use Darktable CLI (recommended for RAW → JPEG + metadata), or jpeg for in-JVM resizing of JPEGs
 --longside: maximum length (in pixels) of the longer side (here: 3000)
 --threads: number of parallel workers (here: 4)
-```
+--darktable-path: full path to the darktable-cli binary (default: darktable-cli on your PATH)
+
 This command will:
 
 - Recursively scan /path/to/your/photos for supported image files.
@@ -119,6 +122,7 @@ This command will:
 | `--since <ISO>`            | Only include files modified on or after this ISO-8601 timestamp                       | *none*                         |
 | `--extensions <csv>`       | Comma-separated list of file extensions to include (e.g. `jpg,png,cr2`)              | All common image/RAW types     |
 | `--threads <n>`            | Number of parallel worker threads                                                     | Number of CPU cores            |
+| `--darktable-path <path>`  | Full path to the darktable-cli binary (for raw mode)                                    |             |
 | `-h`, `--help`             | Show help message                                                                    | —                              |
 
 ### Examples

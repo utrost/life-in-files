@@ -11,6 +11,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.stream.Collectors;
+
 /**
  * CLI entrypoint for the lif-photo-org application.
  *
@@ -54,6 +58,9 @@ public class CLI {
         options.addOption(Option.builder().longOpt("threads")
                 .hasArg().argName("n")
                 .desc("Number of parallel worker threads (default = #cores)").build());
+        options.addOption(Option.builder().longOpt("darktable-path")
+                .hasArg().argName("dtp")
+                .desc("Full Path to darktable-cli)").build());
         options.addOption("h", "help", false, "Show help");
 
         CommandLine cmd;
@@ -80,6 +87,9 @@ public class CLI {
                 cmd.getOptionValue("threads",
                         String.valueOf(Runtime.getRuntime().availableProcessors()))
         );
+        String darktablePath = cmd.getOptionValue("darktable-path", "darktable-cli");
+
+
 
         System.out.println("Source:     " + sourceDir);
         System.out.println("Target:     " + targetDir);
@@ -88,6 +98,7 @@ public class CLI {
         System.out.println("Since:      " + since);
         System.out.println("Extensions: " + extsCsv);
         System.out.println("Threads:    " + threads);
+        System.out.println("Darktable CLI: " + darktablePath);
 
         // 3) Initialize core services
         LoggerService logger   = new LoggerService(CLI.class);
@@ -98,7 +109,7 @@ public class CLI {
         PhotoDecoder decoder;
         try {
             if ("raw".equalsIgnoreCase(mode)) {
-                decoder = new DarktableDecoder(longSide);
+                decoder = new DarktableDecoder(darktablePath, longSide);
             } else if ("jpeg".equalsIgnoreCase(mode)) {
                 decoder = new JpegDecoder(longSide);
             } else {
@@ -148,4 +159,5 @@ public class CLI {
         System.out.println("All done.");
         return 0;
     }
+
 }

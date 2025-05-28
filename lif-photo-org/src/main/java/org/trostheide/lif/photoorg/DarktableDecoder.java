@@ -16,10 +16,16 @@ public class DarktableDecoder implements PhotoDecoder {
     private static final Object DT_LOCK = new Object();
     private final Path tmpDir;
     private final int longSide;
+    private final String dtBinary;
 
-    public DarktableDecoder(int longSide) throws IOException {
-        this.longSide = longSide;
-        this.tmpDir = Files.createTempDirectory("lif_darktable_");
+    /**
+     * @param dtBinary full path or command name for darktable-cli
+     * @param longSide max pixels on the longer side
+     */
+    public DarktableDecoder(String dtBinary, int longSide) throws IOException {
+        this.dtBinary  = dtBinary;
+        this.longSide  = longSide;
+        this.tmpDir    = Files.createTempDirectory("lif_darktable_");
         tmpDir.toFile().deleteOnExit();
     }
 
@@ -31,6 +37,7 @@ public class DarktableDecoder implements PhotoDecoder {
         synchronized (DT_LOCK) {
             // Build the command
             List<String> cmd = new ArrayList<>();
+            cmd.add(dtBinary);
             cmd.add("darktable-cli");
             cmd.add(rawFile.getAbsolutePath());
             cmd.add(outputPath.toString());
