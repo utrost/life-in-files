@@ -1,111 +1,137 @@
 package org.trostheide.lif.phototagging;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
 
+/**
+ * Configuration class for lif-photo-tagging.
+ * Populated from CLI arguments or optional YAML config file.
+ */
 public class PhotoTaggingConfig {
 
-    private Path inputDirectory;
-    private LocalDate sinceDate; // optional, can be null
-    private String ollamaEndpoint = "http://localhost:11434";
+    private Path inputDir;
+    private LocalDate sinceDate;
+
+    private String apiEndpoint = "http://localhost:11434/api/generate";
+    private String model = "gemma3:4b";
+    private String prompt = "Describe this image briefly and provide a list of relevant tags.";
+    ;
+
     private int thumbnailWidth = 512;
-    private Path tagVocabularyFile; // optional
-    private boolean updateMode = false;
-    private boolean rerunMode = false;
-    private Path logCsvFile; // optional
+    private String tagList;
+
     private boolean dryRun = false;
+    private boolean update = false;
+    private boolean rerun = false;
+
+    private Path logFilePath;
 
     // --- Getters and Setters ---
 
-    public Path getInputDirectory() { return inputDirectory; }
-    public void setInputDirectory(Path inputDirectory) { this.inputDirectory = inputDirectory; }
+    public Path getInputDir() {
+        return inputDir;
+    }
 
-    public LocalDate getSinceDate() { return sinceDate; }
-    public void setSinceDate(LocalDate sinceDate) { this.sinceDate = sinceDate; }
+    public void setInputDir(Path inputDir) {
+        this.inputDir = inputDir;
+    }
 
-    public String getOllamaEndpoint() { return ollamaEndpoint; }
-    public void setOllamaEndpoint(String ollamaEndpoint) { this.ollamaEndpoint = ollamaEndpoint; }
+    public LocalDate getSinceDate() {
+        return sinceDate;
+    }
 
-    public int getThumbnailWidth() { return thumbnailWidth; }
-    public void setThumbnailWidth(int thumbnailWidth) { this.thumbnailWidth = thumbnailWidth; }
+    public void setSinceDate(LocalDate sinceDate) {
+        this.sinceDate = sinceDate;
+    }
 
-    public Path getTagVocabularyFile() { return tagVocabularyFile; }
-    public void setTagVocabularyFile(Path tagVocabularyFile) { this.tagVocabularyFile = tagVocabularyFile; }
+    public String getApiEndpoint() {
+        return apiEndpoint;
+    }
 
-    public boolean isUpdateMode() { return updateMode; }
-    public void setUpdateMode(boolean updateMode) { this.updateMode = updateMode; }
+    public void setApiEndpoint(String apiEndpoint) {
+        this.apiEndpoint = apiEndpoint;
+    }
 
-    public boolean isRerunMode() { return rerunMode; }
-    public void setRerunMode(boolean rerunMode) { this.rerunMode = rerunMode; }
+    public String getModel() {
+        return model;
+    }
 
-    public Path getLogCsvFile() { return logCsvFile; }
-    public void setLogCsvFile(Path logCsvFile) { this.logCsvFile = logCsvFile; }
+    public void setModel(String model) {
+        this.model = model;
+    }
 
-    public boolean isDryRun() { return dryRun; }
-    public void setDryRun(boolean dryRun) { this.dryRun = dryRun; }
+    public String getPrompt() {
+        return prompt;
+    }
 
-    // --- CLI Parsing Utility ---
+    public void setPrompt(String prompt) {
+        this.prompt = prompt;
+    }
 
-    /**
-     * Simple CLI arg parser for demonstration.
-     * Supports:
-     *   --input <dir>
-     *   --since <YYYY-MM-DD>
-     *   --ollama-endpoint <url>
-     *   --thumbnail-width <n>
-     *   --tag-vocabulary <file>
-     *   --update
-     *   --rerun
-     *   --log <csv-file>
-     *   --dry-run
-     */
-    public static PhotoTaggingConfig fromArgs(String[] args) {
-        Map<String, String> params = new HashMap<>();
-        for (int i = 0; i < args.length; ++i) {
-            String key = args[i];
-            if (key.startsWith("--")) {
-                if ((i + 1) < args.length && !args[i + 1].startsWith("--")) {
-                    params.put(key, args[++i]);
-                } else {
-                    params.put(key, "true");
-                }
-            }
+    public int getThumbnailWidth() {
+        return thumbnailWidth;
+    }
+
+    public void setThumbnailWidth(int thumbnailWidth) {
+        if (thumbnailWidth > 0) {
+            this.thumbnailWidth = thumbnailWidth;
         }
+    }
 
-        PhotoTaggingConfig config = new PhotoTaggingConfig();
-        if (params.containsKey("--input")) {
-            config.setInputDirectory(Paths.get(params.get("--input")));
-        } else {
-            System.err.println("Missing required --input <dir> argument.");
-            System.exit(1);
-        }
-        if (params.containsKey("--since")) {
-            config.setSinceDate(LocalDate.parse(params.get("--since")));
-        }
-        if (params.containsKey("--ollama-endpoint")) {
-            config.setOllamaEndpoint(params.get("--ollama-endpoint"));
-        }
-        if (params.containsKey("--thumbnail-width")) {
-            config.setThumbnailWidth(Integer.parseInt(params.get("--thumbnail-width")));
-        }
-        if (params.containsKey("--tag-vocabulary")) {
-            config.setTagVocabularyFile(Paths.get(params.get("--tag-vocabulary")));
-        }
-        if (params.containsKey("--update")) {
-            config.setUpdateMode(true);
-        }
-        if (params.containsKey("--rerun")) {
-            config.setRerunMode(true);
-        }
-        if (params.containsKey("--log")) {
-            config.setLogCsvFile(Paths.get(params.get("--log")));
-        }
-        if (params.containsKey("--dry-run")) {
-            config.setDryRun(true);
-        }
-        return config;
+    public String getTagList() {
+        return tagList;
+    }
+
+    public void setTagList(String tagList) {
+        this.tagList = tagList;
+    }
+
+    public boolean isDryRun() {
+        return dryRun;
+    }
+
+    public void setDryRun(boolean dryRun) {
+        this.dryRun = dryRun;
+    }
+
+    public boolean isUpdate() {
+        return update;
+    }
+
+    public void setUpdate(boolean update) {
+        this.update = update;
+    }
+
+    public boolean isRerun() {
+        return rerun;
+    }
+
+    public void setRerun(boolean rerun) {
+        this.rerun = rerun;
+    }
+
+    public Path getLogFilePath() {
+        return logFilePath;
+    }
+
+    public void setLogFilePath(Path logFilePath) {
+        this.logFilePath = logFilePath;
+    }
+
+    @Override
+    public String toString() {
+        return "PhotoTaggingConfig{" +
+                "inputDir=" + inputDir +
+                ", sinceDate=" + sinceDate +
+                ", apiEndpoint='" + apiEndpoint + '\'' +
+                ", model='" + model + '\'' +
+                ", prompt='" + prompt + '\'' +
+                ", thumbnailWidth=" + thumbnailWidth +
+                ", tagList='" + tagList + '\'' +
+                ", dryRun=" + dryRun +
+                ", update=" + update +
+                ", rerun=" + rerun +
+                ", logFilePath=" + logFilePath +
+                '}';
     }
 }

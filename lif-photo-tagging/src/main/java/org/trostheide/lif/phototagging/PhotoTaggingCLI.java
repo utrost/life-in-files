@@ -1,106 +1,146 @@
 package org.trostheide.lif.phototagging;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.cli.*;
 
-import java.io.IOException;
-import java.nio.file.*;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.time.format.DateTimeParseException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
+/**
+ * Command-line entry point for the lif-photo-tagging tool.
+ */
 public class PhotoTaggingCLI {
-    private static final Logger logger = LoggerFactory.getLogger(PhotoTaggingCLI.class);
 
     public static void main(String[] args) {
-        // Parse CLI arguments (simple parser)
-        PhotoTaggingConfig config = PhotoTaggingConfig.fromArgs(args);
+        Options options = new Options();
 
-        // Validate input directory
-        Path inputDir = config.getInputDirectory();
-        if (!Files.exists(inputDir) || !Files.isDirectory(inputDir)) {
-            logger.error("Input directory does not exist: {}", inputDir);
-            System.exit(1);
-        }
+        options.addOption(Option.builder("i")
+                .longOpt("input")
+                .hasArg()
+                .argName("directory")
+                .desc("Root directory to scan for .jpg/.jpeg images (required)")
+                .required()
+                .build());
 
-        // Create and announce run-specific temp folder for thumbnails
+        options.addOption(Option.builder("s")
+                .longOpt("since")
+                .hasArg()
+                .argName("yyyy-mm-dd")
+                .desc("Only process images modified after the specified date")
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("ollama-endpoint")
+                .hasArg()
+                .argName("url")
+                .desc("LLM endpoint for image tagging (default: http://localhost:11434)")
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("thumbnail-width")
+                .hasArg()
+                .argName("pixels")
+                .desc("Width for resized image before LLM processing (default: 512)")
+                .build());
+
+        options.addOption(Option.builder("t")
+                .longOpt("tag-vocabulary")
+                .hasArg()
+                .argName("file")
+                .desc("Optional file with predefined tags to guide tagging")
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("update")
+                .desc("Append to existing YAML sidecars instead of skipping")
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("rerun")
+                .desc("Force full reprocessing and overwrite existing metadata")
+                .build());
+
+        options.addOption(Option.builder("l")
+                .longOpt("log")
+                .hasArg()
+                .argName("file")
+                .desc("Path to the CSV log file")
+                .build());
+
+        options.addOption(Option.builder("h")
+                .longOpt("help")
+                .desc("Display usage information")
+                .build());
+
+        CommandLineParser parser = new DefaultParser();
+        HelpFormatter formatter = new HelpFormatter();
+
         try {
-            ThumbnailUtils.initializeTempDir();
-        } catch (IOException e) {
-            logger.error("Failed to initialize temporary directory for thumbnails.", e);
-            System.exit(1);
-        }
+            CommandLine cmd = parser.parse(options, args);
 
-        // Discover all .jpg/.jpeg files (recursive)
-        List<Path> imageFiles = listJpegFilesRecursive(inputDir, config.getSinceDate());
-        logger.info("Discovered {} JPEG files for tagging.", imageFiles.size());
-
-        for (Path imagePath : imageFiles) {
-            try {
-                logger.info("Processing: {}", imagePath);
-
-                // a) Create temporary thumbnail in run-specific temp folder
-                Path thumbnail = ThumbnailUtils.createThumbnail(imagePath, config.getThumbnailWidth(), config.isDryRun());
-
-                // b) Call LLM API for tags & description (mock for now)
-                //LLMResult llmResult = LLMUtils.callLLM(thumbnail, config);
-                LLMResult llmResult = LLMUtils.callLLM(thumbnail, config);
-                logger.info("LLM returned: {}", llmResult);
-
-                // (future steps go here: metadata, YAML, etc.)
-
-                // c) Delete thumbnail after use (unless dry-run)
-                if (!config.isDryRun()) {
-                  //  ThumbnailUtils.deleteThumbnail(thumbnail);
-                }
-
-                logger.info("Finished: {}", imagePath);
-
-            } catch (Exception ex) {
-                logger.error("Failed to process: {}", imagePath, ex);
+            if (cmd.hasOption("help")) {
+                formatter.printHelp("java -jar lif-photo-tagging.jar [options]", options);
+                return;
             }
+
+            PhotoTaggingConfig config = new PhotoTaggingConfig();
+
+            // Required input directory
+            Path inputPath = Paths.get(cmd.getOptionValue("input"));
+            if (!Files.exists(inputPath) || !Files.isDirectory(inputPath)) {
+                System.err.println("Error: Invalid input directory: " + inputPath);
+                System.exit(1);
+            }
+            config.setInputDir(inputPath);
+
+            // Optional values
+            if (cmd.hasOption("since")) {
+                try {
+                    config.setSinceDate(LocalDate.parse(cmd.getOptionValue("since")));
+                } catch (DateTimeParseException e) {
+                    System.err.println("Error: Invalid date format for --since (expected yyyy-mm-dd)");
+                    System.exit(1);
+                }
+            }
+
+            if (cmd.hasOption("ollama-endpoint")) {
+                config.setApiEndpoint(cmd.getOptionValue("ollama-endpoint"));
+            }
+
+            if (cmd.hasOption("thumbnail-width")) {
+                try {
+                    config.setThumbnailWidth(Integer.parseInt(cmd.getOptionValue("thumbnail-width")));
+                } catch (NumberFormatException e) {
+                    System.err.println("Error: thumbnail-width must be an integer");
+                    System.exit(1);
+                }
+            }
+
+            if (cmd.hasOption("tag-vocabulary")) {
+                config.setTagList(cmd.getOptionValue("tag-vocabulary"));
+            }
+
+            config.setDryRun(false); // Set to true if implementing a dry-run flag later
+            config.setUpdate(cmd.hasOption("update"));
+            config.setRerun(cmd.hasOption("rerun"));
+
+            if (cmd.hasOption("log")) {
+                config.setLogFilePath(Paths.get(cmd.getOptionValue("log")));
+            }
+
+            // Call the actual processor
+            PhotoTaggingProcessor.run(config);
+
+        } catch (MissingOptionException e) {
+            System.err.println("Missing required options: " + e.getMessage());
+            formatter.printHelp("java -jar lif-photo-tagging.jar [options]", options);
+            System.exit(1);
+        } catch (ParseException e) {
+            System.err.println("Failed to parse command-line arguments: " + e.getMessage());
+            formatter.printHelp("java -jar lif-photo-tagging.jar [options]", options);
+            System.exit(1);
         }
-
-        // Delete temp dir if empty (optional hygiene)
-        if (!config.isDryRun()) {
-            ThumbnailUtils.deleteTempDirIfEmpty();
-        }
-
-        logger.info("lif-photo-tagging complete. Processed: {} images.", imageFiles.size());
-    }
-
-
-    /**
-     * Recursively lists all .jpg/.jpeg files under the given directory, optionally filtering by modification date.
-     */
-    private static List<Path> listJpegFilesRecursive(Path root, LocalDate sinceDate) {
-        List<Path> files = new ArrayList<>();
-        try {
-            Files.walk(root)
-                    .filter(Files::isRegularFile)
-                    .filter(path -> {
-                        String lower = path.getFileName().toString().toLowerCase();
-                        boolean isJpeg = lower.endsWith(".jpg") || lower.endsWith(".jpeg");
-                        boolean afterDate = true;
-                        if (sinceDate != null) {
-                            try {
-                                afterDate = Files.getLastModifiedTime(path)
-                                        .toInstant()
-                                        .atZone(java.time.ZoneId.systemDefault())
-                                        .toLocalDate()
-                                        .isAfter(sinceDate.minusDays(1)); // inclusive
-                            } catch (IOException e) {
-                                // If we can't read date, skip file
-                                return false;
-                            }
-                        }
-                        return isJpeg && afterDate;
-                    })
-                    .forEach(files::add);
-        } catch (IOException e) {
-            logger.error("Failed to traverse input directory: {}", root, e);
-        }
-        return files;
     }
 }

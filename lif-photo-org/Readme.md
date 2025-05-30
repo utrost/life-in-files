@@ -94,6 +94,9 @@ java -jar lif-photo-org/target/lif-photo-org-0.1.0-SNAPSHOT-jar-with-dependencie
   --mode raw \
   --longside 3000 \
   --threads 4
+  --quality 80
+  --video true
+  --order date
   --darktable-path "/Applications/darktable.app/Contents/MacOS/darktable-cli" \
   ```
 --source: root folder containing your RAW/JPEG images
@@ -113,17 +116,21 @@ This command will:
 
 ### Options
 
-| Option                     | Description                                                                          | Default                        |
-|----------------------------|--------------------------------------------------------------------------------------|--------------------------------|
-| `-s`, `--source <dir>`     | Source directory to scan (required)                                                  | —                              |
-| `-t`, `--target <dir>`     | Target directory for output (required)                                               | —                              |
+| Option             | Description                                                                          | Default                        |
+|--------------------|--------------------------------------------------------------------------------------|--------------------------------|
+| `-s`, `--source <dir>` | Source directory to scan (required)                                                  | —                              |
+| `-t`, `--target <dir>` | Target directory for output (required)                                               | —                              |
 | `-m`, `--mode <raw|jpeg>`  | Processing mode: <br>`raw` → Darktable CLI for conversion+resize<br>`jpeg` → ImageIO+Thumbnailator for JPEG resizing | —                              |
-| `--longside <pixels>`      | Maximum length of the longer side (0 = no resize)                                    | `0`                            |
-| `--since <ISO>`            | Only include files modified on or after this ISO-8601 timestamp                       | *none*                         |
-| `--extensions <csv>`       | Comma-separated list of file extensions to include (e.g. `jpg,png,cr2`)              | All common image/RAW types     |
-| `--threads <n>`            | Number of parallel worker threads                                                     | Number of CPU cores            |
-| `--darktable-path <path>`  | Full path to the darktable-cli binary (for raw mode)                                    |             |
-| `-h`, `--help`             | Show help message                                                                    | —                              |
+| `--longside <pixels>` | Maximum length of the longer side (0 = no resize)                                    | `0`                            |
+| `--since <ISO>`    | Only include files modified on or after this ISO-8601 timestamp                       | *none*                         |
+| `--quality`   | <1-100>              | JPEG compression quality percentage	95    |
+| `--video`     | <true|false>              | Copy video files (.mp4, .mov, .avi, .wmf, .mkv)	false     |
+| `--order`     | <structure|date>             | Output folder layout: mirror source folders or group by creation date (YYYY/MM/DD)	structure     |
+| `--extensions <csv>` | Comma-separated list of file extensions to include (e.g. `jpg,png,cr2`)              | All common image/RAW types     |
+| `--threads <n>`    | Number of parallel worker threads                                                     | Number of CPU cores            |
+| `--darktable-path <path>` | Full path to the darktable-cli binary (for raw mode)                                    |             |
+| `-h`, `--help`     | Show help message                                                                    | —                              |
+ 	
 
 ### Examples
 
