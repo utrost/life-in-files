@@ -20,6 +20,13 @@ public class PhotoTaggingCLI {
                 .required()
                 .build());
 
+        options.addOption(Option.builder()
+                .longOpt("ollama-endpoint")
+                .hasArg()
+                .argName("url")
+                .desc("Specify the Ollama or LLM endpoint for image analysis (default: http://localhost:11434/api/generate)")
+                .build());
+
         options.addOption(Option.builder("s")
                 .longOpt("since")
                 .desc("Only process photos created since this date (YYYY-MM-DD)")
@@ -95,6 +102,11 @@ public class PhotoTaggingCLI {
                     return;
                 }
             }
+
+            if (cmd.hasOption("ollama-endpoint")) {
+                config.setApiEndpoint(cmd.getOptionValue("ollama-endpoint"));
+            }
+
 
             config.setDryRun(cmd.hasOption("dry-run"));
             config.setRerun(cmd.hasOption("rerun"));

@@ -14,7 +14,7 @@ public class PhotoTaggingProcessor {
         List<Path> images = new ArrayList<>();
         Path root = config.getInputDir();
 
-        System.out.println("📂 Scanning directory: " + root);
+        System.out.println("Scanning directory: " + root);
 
         try {
             Files.walkFileTree(root, new SimpleFileVisitor<>() {
@@ -30,14 +30,14 @@ public class PhotoTaggingProcessor {
                 }
             });
         } catch (IOException e) {
-            System.err.println("❌ Failed to walk directory tree: " + e.getMessage());
+            System.err.println("Failed to walk directory tree: " + e.getMessage());
             return;
         }
 
-        System.out.println("📸 Found " + images.size() + " images to process.\n");
+        System.out.println("Found " + images.size() + " images to process.\n");
 
         for (Path photo : images) {
-            System.out.println("➡️ Processing: " + photo);
+            System.out.println("➡Processing: " + photo);
 
             try {
                 Path thumb = ThumbnailUtils.resizeToTemp(photo, config.getThumbnailWidth());
@@ -58,7 +58,7 @@ public class PhotoTaggingProcessor {
             System.out.println(); // spacer
         }
 
-        System.out.println("✅ Processing complete.");
+        System.out.println("Processing complete.");
     }
 
     private static boolean shouldIncludeFile(Path path, BasicFileAttributes attrs, PhotoTaggingConfig config) {
