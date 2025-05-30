@@ -26,36 +26,19 @@ public class LLMUtils {
     public static LLMResult queryLLM(Path image, PhotoTaggingConfig config) throws IOException, InterruptedException {
         String base64 = Base64.getEncoder().encodeToString(Files.readAllBytes(image));
 
-        // Structured prompt message
-        List<Map<String, Object>> messages = List.of(Map.of(
-                "role", "user",
-                "content", config.getPrompt()
-        ));
-
-        // JSON schema definition
-        Map<String, Object> format = new HashMap<>();
-        format.put("type", "object");
-        Map<String, Object> properties = new HashMap<>();
-        properties.put("description", Map.of("type", "string"));
-        properties.put("tags", Map.of("type", "array", "items", Map.of("type", "string")));
-        format.put("properties", properties);
-        format.put("required", List.of("description", "tags"));
-
-        // Final payload
         Map<String, Object> payload = new HashMap<>();
         payload.put("model", config.getModel());
-        payload.put("messages", messages);
+        payload.put("prompt", config.getPrompt());
         payload.put("images", List.of(base64));
-        payload.put("stream", false);
-        payload.put("format", format);
+        payload.put("stream", false);  // Disable streaming for easier parsing
 
-        // Redacted printout
+        // Log outgoing payload (without base64)
         Map<String, Object> debugPayload = new HashMap<>(payload);
-        debugPayload.put("images", List.of("<omitted base64 image>"));
+        debugPayload.put("images", List.of("<omitted base64>"));
+        System.out.println("Sending to Ollama /api/generate:");
+        System.out.println(MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(debugPayload));
 
-// Actual payload
         String jsonBody = MAPPER.writeValueAsString(payload);
-
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(config.getApiEndpoint()))
@@ -71,8 +54,14 @@ public class LLMUtils {
         }
 
         JsonNode root = MAPPER.readTree(response.body());
-        return LLMResult.fromJson(root);
+        String responseText = root.has("response") ? root.get("response").asText() : "";
+
+        System.out.println("Raw text response:");
+        System.out.println(responseText);
+
+        return LLMResult.fromRawText(responseText);
     }
+
 
 
 }

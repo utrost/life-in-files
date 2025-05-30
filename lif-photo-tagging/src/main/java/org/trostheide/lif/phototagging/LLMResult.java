@@ -88,20 +88,24 @@ public class LLMResult {
     }
 
     public static LLMResult fromRawText(String text) {
-        String[] parts = text.split("Tags?:", 2);
-        String description = parts[0].trim();
+        String[] parts = text.split("(?i)Tags?:", 2);  // case-insensitive split
+        String description = parts[0].replaceAll("\\*\\*", "").trim(); // remove bold markers
         List<String> tags = new ArrayList<>();
 
         if (parts.length > 1) {
-            String[] tagArray = parts[1].split("[,;\\n]");
-            for (String tag : tagArray) {
-                String clean = tag.trim();
-                if (!clean.isEmpty()) {
-                    tags.add(clean);
+            String tagBlock = parts[1];
+            // Split by lines or commas
+            String[] lines = tagBlock.split("[\\r\\n,]");
+            for (String line : lines) {
+                String tag = line.replaceAll("[\\*\\-]", "").trim(); // remove * and - bullets
+                if (!tag.isEmpty()) {
+                    tags.add(tag);
                 }
             }
         }
 
-        return new LLMResult(description, tags, 1.0); // confidence is defaulted
+        return new LLMResult(description, tags, 1.0);
     }
+
+
 }
