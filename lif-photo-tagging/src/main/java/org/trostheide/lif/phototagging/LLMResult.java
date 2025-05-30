@@ -44,7 +44,7 @@ public class LLMResult {
 
                 return new LLMResult(description, tags, 1.0);
             } else {
-                System.err.println("⚠Unexpected response format (no 'message.content')");
+                System.err.println("Unexpected response format (no 'message.content')");
             }
         } catch (Exception e) {
             System.err.println("Failed to parse LLM JSON response: " + e.getMessage());
