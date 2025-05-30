@@ -14,8 +14,9 @@ public class PhotoTaggingConfig {
 
     private String apiEndpoint = "http://localhost:11434/api/generate";
     private String model = "gemma3:4b";
-    private String prompt = "Describe this image briefly and provide a list of relevant tags.";
-    ;
+    private String prompt = "Analyze this image and return only a valid JSON object with two keys: \"description\" (a short string), and \"tags\" (an array of short strings). Do not include any explanation or formatting.";
+
+
 
     private int thumbnailWidth = 512;
     private String tagList;

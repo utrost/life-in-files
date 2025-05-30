@@ -108,4 +108,36 @@ public class LLMResult {
     }
 
 
+    public static LLMResult fromJsonText(String response) {
+        ObjectMapper mapper = new ObjectMapper();
+
+        // 🧼 Strip Markdown code block markers (e.g., ```json or ```)
+        response = response.trim();
+        if (response.startsWith("```")) {
+            int firstNewline = response.indexOf("\n");
+            int lastBackticks = response.lastIndexOf("```");
+            if (firstNewline != -1 && lastBackticks > firstNewline) {
+                response = response.substring(firstNewline + 1, lastBackticks).trim();
+            }
+        }
+
+        try {
+            JsonNode json = mapper.readTree(response);
+
+            String description = json.has("description") ? json.get("description").asText() : "";
+            List<String> tags = new ArrayList<>();
+
+            if (json.has("tags") && json.get("tags").isArray()) {
+                for (JsonNode tag : json.get("tags")) {
+                    tags.add(tag.asText());
+                }
+            }
+
+            return new LLMResult(description, tags, 1.0);
+        } catch (Exception e) {
+            System.err.println("Failed to parse structured JSON: " + e.getMessage());
+            return fromRawText(response); // fallback if formatting fails
+        }
+    }
+
 }

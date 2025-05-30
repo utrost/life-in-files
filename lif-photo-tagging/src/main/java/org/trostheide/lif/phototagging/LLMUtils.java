@@ -10,15 +10,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-/**
- * Sends a base64-encoded image and prompt to the Ollama /api/generate endpoint.
- * Expected LLM: Gemma3 (vision-capable) via Ollama.
- */
 public class LLMUtils {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -30,12 +23,18 @@ public class LLMUtils {
         payload.put("model", config.getModel());
         payload.put("prompt", config.getPrompt());
         payload.put("images", List.of(base64));
-        payload.put("stream", false);  // Disable streaming for easier parsing
+        payload.put("stream", false);
 
-        // Log outgoing payload (without base64)
+        Map<String, Object> options = new HashMap<>();
+        options.put("temperature", 0.0);
+        options.put("top_p", 0.9);
+        options.put("top_k", 40);
+        payload.put("options", options);
+
+        // Debug output (without base64 image)
         Map<String, Object> debugPayload = new HashMap<>(payload);
         debugPayload.put("images", List.of("<omitted base64>"));
-        System.out.println("Sending to Ollama /api/generate:");
+        System.out.println("Sending request to " + config.getApiEndpoint());
         System.out.println(MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(debugPayload));
 
         String jsonBody = MAPPER.writeValueAsString(payload);
@@ -56,12 +55,8 @@ public class LLMUtils {
         JsonNode root = MAPPER.readTree(response.body());
         String responseText = root.has("response") ? root.get("response").asText() : "";
 
-        System.out.println("Raw text response:");
-        System.out.println(responseText);
+        System.out.println("raw response string:\n" + responseText);
 
-        return LLMResult.fromRawText(responseText);
+        return LLMResult.fromJsonText(responseText);
     }
-
-
-
 }
