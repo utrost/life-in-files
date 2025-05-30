@@ -11,22 +11,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.stream.Collectors;
-
 /**
  * CLI entrypoint for the lif-photo-org application.
- *
- * Usage example:
- *   java -jar lif-photo-org.jar \
- *     --source /path/to/source \
- *     --target /path/to/target \
- *     --mode raw \
- *     --longside 3000 \
- *     --since 2020-01-01T00:00:00Z \
- *     --extensions jpg,png,cr2 \
- *     --threads 4
  */
 public class CLI {
     public static void main(String[] args) {
@@ -45,24 +31,34 @@ public class CLI {
                 .desc("Target directory for output").build());
         options.addOption(Option.builder("m").longOpt("mode")
                 .hasArg().argName("raw|jpeg").required()
-                .desc("Processing mode: 'raw' (darktable) or 'jpeg' (ImageIO)").build());
+                .desc("Processing mode: raw or jpeg").build());
         options.addOption(Option.builder().longOpt("longside")
                 .hasArg().argName("pixels")
                 .desc("Max length of the longer side (0 = no resize)").build());
         options.addOption(Option.builder().longOpt("since")
                 .hasArg().argName("ISO")
-                .desc("Only files modified on/after this ISO-8601 timestamp").build());
+                .desc("Only include files modified on/after this ISO-8601 timestamp").build());
         options.addOption(Option.builder().longOpt("extensions")
                 .hasArg().argName("csv")
-                .desc("Comma-separated file extensions to include (default = all common)").build());
+                .desc("Comma-separated file extensions to include").build());
         options.addOption(Option.builder().longOpt("threads")
                 .hasArg().argName("n")
-                .desc("Number of parallel worker threads (default = #cores)").build());
+                .desc("Number of parallel worker threads").build());
         options.addOption(Option.builder().longOpt("darktable-path")
-                .hasArg().argName("dtp")
-                .desc("Full Path to darktable-cli)").build());
+                .hasArg().argName("path")
+                .desc("Full path to darktable-cli binary").build());
+        options.addOption(Option.builder().longOpt("quality")
+                .hasArg().argName("1-100")
+                .desc("JPEG quality percentage (default: 95)").build());
+        options.addOption(Option.builder().longOpt("video")
+                .hasArg().argName("true|false")
+                .desc("Copy video files instead of skipping (default: false)").build());
+        options.addOption(Option.builder().longOpt("order")
+                .hasArg().argName("structure|date")
+                .desc("Output folder layout: mirror structure or group by date (default: structure)").build());
         options.addOption("h", "help", false, "Show help");
 
+        // 2) Parse
         CommandLine cmd;
         try {
             cmd = new DefaultParser().parse(options, args);
@@ -76,42 +72,44 @@ public class CLI {
             return 1;
         }
 
-        // 2) Extract parameters
-        String sourceDir = cmd.getOptionValue("source");
-        String targetDir = cmd.getOptionValue("target");
-        String mode      = cmd.getOptionValue("mode");
-        int longSide     = Integer.parseInt(cmd.getOptionValue("longside", "0"));
-        String since     = cmd.getOptionValue("since", null);
-        String extsCsv   = cmd.getOptionValue("extensions", null);
-        int threads      = Integer.parseInt(
-                cmd.getOptionValue("threads",
-                        String.valueOf(Runtime.getRuntime().availableProcessors()))
-        );
-        String darktablePath = cmd.getOptionValue("darktable-path", "darktable-cli");
+        // 3) Extract parameters
+        String sourceDir      = cmd.getOptionValue("source");
+        String targetDir      = cmd.getOptionValue("target");
+        String mode           = cmd.getOptionValue("mode");
+        int longSide          = Integer.parseInt(cmd.getOptionValue("longside", "0"));
+        String since          = cmd.getOptionValue("since", null);
+        String extsCsv        = cmd.getOptionValue("extensions", null);
+        int threads           = Integer.parseInt(cmd.getOptionValue("threads",
+                String.valueOf(Runtime.getRuntime().availableProcessors())));
+        String dtPath         = cmd.getOptionValue("darktable-path", "darktable-cli");
+        int quality           = Integer.parseInt(cmd.getOptionValue("quality", "95"));
+        boolean copyVideo     = Boolean.parseBoolean(cmd.getOptionValue("video", "false"));
+        String order          = cmd.getOptionValue("order", "structure");
 
+        System.out.println("Source:          " + sourceDir);
+        System.out.println("Target:          " + targetDir);
+        System.out.println("Mode:            " + mode);
+        System.out.println("Long side:       " + longSide);
+        System.out.println("Since:           " + since);
+        System.out.println("Extensions:      " + extsCsv);
+        System.out.println("Threads:         " + threads);
+        System.out.println("Darktable path:  " + dtPath);
+        System.out.println("JPEG quality:    " + quality);
+        System.out.println("Copy video:      " + copyVideo);
+        System.out.println("Output ordering: " + order);
 
+        // 4) Core services
+        LoggerService    logger   = new LoggerService(CLI.class);
+        DirectoryScanner scanner  = new DirectoryScanner(logger, since, extsCsv, copyVideo);
+        LifIndexManager  indexMgr = new LifIndexManager(new File(targetDir, ".lif-index.json"));
 
-        System.out.println("Source:     " + sourceDir);
-        System.out.println("Target:     " + targetDir);
-        System.out.println("Mode:       " + mode);
-        System.out.println("Long side:  " + longSide);
-        System.out.println("Since:      " + since);
-        System.out.println("Extensions: " + extsCsv);
-        System.out.println("Threads:    " + threads);
-        System.out.println("Darktable CLI: " + darktablePath);
-
-        // 3) Initialize core services
-        LoggerService logger   = new LoggerService(CLI.class);
-        DirectoryScanner scanner = new DirectoryScanner(logger, since, extsCsv);
-        LifIndexManager indexMgr = new LifIndexManager(new File(targetDir, ".lif-index.json"));
-
-        // 4) Choose decoder implementation
+        // 5) Decoder
         PhotoDecoder decoder;
         try {
             if ("raw".equalsIgnoreCase(mode)) {
-                decoder = new DarktableDecoder(darktablePath, longSide);
+                decoder = new DarktableDecoder(dtPath, longSide, quality);
             } else if ("jpeg".equalsIgnoreCase(mode)) {
-                decoder = new JpegDecoder(longSide);
+                decoder = new JpegDecoder(longSide, quality);
             } else {
                 System.err.println("ERROR: Unknown mode '" + mode + "'");
                 return 2;
@@ -121,24 +119,23 @@ public class CLI {
             return 3;
         }
 
-        // 5) Build the processor
+        // 6) Processor
         PhotoProcessor processor = new PhotoProcessor(
                 new File(sourceDir),
                 new File(targetDir),
                 logger,
                 indexMgr,
-                decoder
+                decoder,
+                order.equalsIgnoreCase("date")
         );
 
-        // 6) Discover files
+        // 7) Scan and process
         List<File> files = scanner.scan(new File(sourceDir));
         System.out.println("Found " + files.size() + " files to process.");
 
-        // 7) Set up progress tracking
         ProgressTracker progress = new ProgressTracker(logger);
         progress.startTask(files.size());
 
-        // 8) Process in parallel
         ExecutorService exec = Executors.newFixedThreadPool(threads);
         for (File f : files) {
             exec.submit(() -> {
@@ -151,13 +148,11 @@ public class CLI {
             exec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            logger.error("Interrupted while waiting for tasks to finish", ie);
+            logger.error("Interrupted", ie);
             return 4;
         }
         progress.onComplete();
 
-        System.out.println("All done.");
         return 0;
     }
-
 }

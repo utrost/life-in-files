@@ -11,29 +11,44 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Recursively scans a directory for files modified since a given timestamp
- * and matching one of the given extensions.
+ * Recursively scans a directory for files:
+ *  - filtered by creation/modification date (since)
+ *  - matching one of the given extensions
+ *  - optionally including video files
  */
 public class DirectoryScanner {
+    private static final Set<String> DEFAULT_IMAGE_EXTS = Set.of(
+            "jpg","jpeg","png","tif","tiff",
+            "cr2","nef","arw","dng","orf","raf","rw2","pef","srw","kdc"
+    );
+    private static final Set<String> VIDEO_EXTS = Set.of(
+            "mp4","mov","avi","wmf","mkv"
+    );
+
     private final LoggerService logger;
     private final Instant sinceInstant;
     private final Set<String> extensions; // lower-case, without dot
 
     /**
-     * @param logger    for info/error output
-     * @param since     ISO-8601 timestamp (e.g. "2025-01-01T00:00:00Z"), or null for no date filter
-     * @param extsCsv   comma-separated extensions (e.g. "jpg,png,cr2"), or null for all known image types
+     * @param logger      for info/error output
+     * @param since       ISO-8601 timestamp (e.g. "2025-01-01T00:00:00Z"), or null
+     * @param extsCsv     comma-separated extensions (e.g. "jpg,png,cr2"), or null
+     * @param copyVideo   if true, include common video extensions
      */
-    public DirectoryScanner(LoggerService logger, String since, String extsCsv) {
+    public DirectoryScanner(LoggerService logger,
+                            String since,
+                            String extsCsv,
+                            boolean copyVideo) {
         this.logger = logger;
 
-        // parse 'since' timestamp if provided
+        // parse 'since' timestamp
         if (since != null && !since.isBlank()) {
             Instant tmp;
             try {
                 tmp = Instant.parse(since);
             } catch (DateTimeParseException e) {
-                logger.error("Invalid --since timestamp, ignoring filter: " + since, e);
+                logger.error("Invalid --since timestamp, ignoring filter: " + since,
+                        e);
                 tmp = null;
             }
             this.sinceInstant = tmp;
@@ -42,28 +57,30 @@ public class DirectoryScanner {
         }
 
         // build extensions set
+        Set<String> exts;
         if (extsCsv != null && !extsCsv.isBlank()) {
-            this.extensions = Arrays.stream(extsCsv.split(","))
+            exts = Arrays.stream(extsCsv.split(","))
                     .map(String::trim)
                     .map(String::toLowerCase)
-                    .collect(Collectors.toSet());
+                    .collect(Collectors.toCollection(HashSet::new));
         } else {
-            // default to a broad set of common image/RAW formats
-            this.extensions = Set.of(
-                    "jpg","jpeg","png","tif","tiff",
-                    "cr2","nef","arw","dng","orf","raf","rw2","pef","srw","kdc"
-            );
+            exts = new HashSet<>(DEFAULT_IMAGE_EXTS);
         }
+        if (copyVideo) {
+            exts.addAll(VIDEO_EXTS);
+        }
+        this.extensions = Collections.unmodifiableSet(exts);
     }
 
     /**
-     * Walks the sourceDir recursively and returns a list of files that:
-     *  - are modified after 'sinceInstant' (if set)
+     * Walks sourceDir recursively and returns a list of files that:
+     *  - are modified on/after 'sinceInstant' (if set)
      *  - have an extension in the 'extensions' set
      */
     public List<File> scan(File sourceDir) {
         if (!sourceDir.isDirectory()) {
-            logger.info("Source is not a directory: " + sourceDir);
+            logger.error("Source is not a directory: " + sourceDir,
+                    new IllegalArgumentException(sourceDir.toString()));
             return Collections.emptyList();
         }
 
