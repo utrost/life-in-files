@@ -49,6 +49,11 @@ public class PhotoTaggingCLI {
                 .desc("Update .yaml files if they already exist")
                 .build());
 
+        options.addOption(Option.builder()
+                .longOpt("embed")
+                .desc("Write description and tags into JPEG metadata")
+                .build());
+
         options.addOption(Option.builder("w")
                 .longOpt("width")
                 .desc("Thumbnail width in pixels (default: 512)")
@@ -107,10 +112,10 @@ public class PhotoTaggingCLI {
                 config.setApiEndpoint(cmd.getOptionValue("ollama-endpoint"));
             }
 
-
             config.setDryRun(cmd.hasOption("dry-run"));
             config.setRerun(cmd.hasOption("rerun"));
             config.setUpdate(cmd.hasOption("update"));
+            config.setEmbedMetadata(cmd.hasOption("embed"));
 
             if (cmd.hasOption("width")) {
                 try {
