@@ -13,6 +13,7 @@
         <module>lif-core</module>
         <module>lif-photo-org</module>
         <module>lif-photo-tagging</module>
+        <module>lif-photo-faces</module>
     </modules>
 
     <properties>
