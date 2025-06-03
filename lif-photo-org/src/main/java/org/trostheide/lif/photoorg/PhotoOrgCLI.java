@@ -1,5 +1,6 @@
 package org.trostheide.lif.photoorg;
 
+import org.slf4j.Logger;
 import org.trostheide.lif.core.LoggerService;
 import org.trostheide.lif.core.LifIndexManager;
 import org.trostheide.lif.core.ProgressTracker;
@@ -12,16 +13,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * CLI entrypoint for the lif-photo-org application.
+ * PhotoOrgCLI entrypoint for the lif-photo-org application.
  */
-public class CLI {
+public class PhotoOrgCLI {
+    private static final Logger log = LoggerService.getLogger(PhotoOrgCLI.class);
+
     public static void main(String[] args) {
-        int exitCode = new CLI().run(args);
+        int exitCode = new PhotoOrgCLI().run(args);
         System.exit(exitCode);
     }
 
     private int run(String[] args) {
-        // 1) Define CLI options
+        // 1) Define PhotoOrgCLI options
         Options options = new Options();
         options.addOption(Option.builder("s").longOpt("source")
                 .hasArg().argName("dir").required()
@@ -99,8 +102,8 @@ public class CLI {
         System.out.println("Output ordering: " + order);
 
         // 4) Core services
-        LoggerService    logger   = new LoggerService(CLI.class);
-        DirectoryScanner scanner  = new DirectoryScanner(logger, since, extsCsv, copyVideo);
+
+        DirectoryScanner scanner  = new DirectoryScanner(since, extsCsv, copyVideo);
         LifIndexManager  indexMgr = new LifIndexManager(new File(targetDir, ".lif-index.json"));
 
         // 5) Decoder
@@ -115,7 +118,7 @@ public class CLI {
                 return 2;
             }
         } catch (Exception e) {
-            logger.error("Failed to initialize decoder", e);
+            log.error("Failed to initialize decoder", e);
             return 3;
         }
 
@@ -123,7 +126,6 @@ public class CLI {
         PhotoProcessor processor = new PhotoProcessor(
                 new File(sourceDir),
                 new File(targetDir),
-                logger,
                 indexMgr,
                 decoder,
                 order.equalsIgnoreCase("date")
@@ -133,7 +135,7 @@ public class CLI {
         List<File> files = scanner.scan(new File(sourceDir));
         System.out.println("Found " + files.size() + " files to process.");
 
-        ProgressTracker progress = new ProgressTracker(logger);
+        ProgressTracker progress = new ProgressTracker();
         progress.startTask(files.size());
 
         ExecutorService exec = Executors.newFixedThreadPool(threads);
@@ -148,7 +150,7 @@ public class CLI {
             exec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            logger.error("Interrupted", ie);
+            log.error("Interrupted", ie);
             return 4;
         }
         progress.onComplete();

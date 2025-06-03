@@ -1,5 +1,6 @@
 package org.trostheide.lif.photoorg;
 
+import org.slf4j.Logger;
 import org.trostheide.lif.core.LoggerService;
 
 import java.io.File;
@@ -17,6 +18,8 @@ import java.util.stream.Collectors;
  *  - optionally including video files
  */
 public class DirectoryScanner {
+    private static final Logger log = LoggerService.getLogger(DirectoryScanner.class);
+
     private static final Set<String> DEFAULT_IMAGE_EXTS = Set.of(
             "jpg","jpeg","png","tif","tiff",
             "cr2","nef","arw","dng","orf","raf","rw2","pef","srw","kdc"
@@ -25,21 +28,21 @@ public class DirectoryScanner {
             "mp4","mov","avi","wmf","mkv"
     );
 
-    private final LoggerService logger;
+
     private final Instant sinceInstant;
     private final Set<String> extensions; // lower-case, without dot
 
     /**
-     * @param logger      for info/error output
+
      * @param since       ISO-8601 timestamp (e.g. "2025-01-01T00:00:00Z"), or null
      * @param extsCsv     comma-separated extensions (e.g. "jpg,png,cr2"), or null
      * @param copyVideo   if true, include common video extensions
      */
-    public DirectoryScanner(LoggerService logger,
+    public DirectoryScanner(
                             String since,
                             String extsCsv,
                             boolean copyVideo) {
-        this.logger = logger;
+
 
         // parse 'since' timestamp
         if (since != null && !since.isBlank()) {
@@ -47,7 +50,7 @@ public class DirectoryScanner {
             try {
                 tmp = Instant.parse(since);
             } catch (DateTimeParseException e) {
-                logger.error("Invalid --since timestamp, ignoring filter: " + since,
+                log.error("Invalid --since timestamp, ignoring filter: " + since,
                         e);
                 tmp = null;
             }
@@ -79,14 +82,14 @@ public class DirectoryScanner {
      */
     public List<File> scan(File sourceDir) {
         if (!sourceDir.isDirectory()) {
-            logger.error("Source is not a directory: " + sourceDir,
+            log.error("Source is not a directory: " + sourceDir,
                     new IllegalArgumentException(sourceDir.toString()));
             return Collections.emptyList();
         }
 
         List<File> result = new ArrayList<>();
         scanRecursive(sourceDir.toPath(), result);
-        logger.info("Queued " + result.size() + " files for processing");
+        log.info("Queued " + result.size() + " files for processing");
         return result;
     }
 
@@ -98,11 +101,11 @@ public class DirectoryScanner {
                     scanRecursive(path, out);
                 } else if (matches(f)) {
                     out.add(f);
-                    logger.info("  + " + f.getAbsolutePath());
+                    log.info("  + " + f.getAbsolutePath());
                 }
             });
         } catch (Exception e) {
-            logger.error("Error scanning directory: " + dir, e);
+            log.error("Error scanning directory: " + dir, e);
         }
     }
 

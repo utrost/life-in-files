@@ -186,7 +186,7 @@ if-parent/
 └── lif-photo-org/ # Photo-org application module
 ├── pom.xml
 └── src/
-├── main/java/... # CLI, DirectoryScanner, PhotoProcessor, decoders
+├── main/java/... # PhotoOrgCLI, DirectoryScanner, PhotoProcessor, decoders
 └── test/java/... # JPEG/RAW processing integration tests
 ```
 

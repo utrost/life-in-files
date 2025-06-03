@@ -3,10 +3,13 @@ package org.trostheide.lif.photofaces;
 import org.apache.commons.cli.*;
 import org.trostheide.lif.photofaces.config.PhotoFacesConfig;
 
-public class LifPhotoFaces {
+public class LifPhotoFacesCLI {
 
     public static void main(String[] args) {
         Options options = new Options();
+
+        options.addOption("d", "debug", false, "Enable debug mode and save face images.");
+
 
         Option modeOption = Option.builder("m")
                 .longOpt("mode")
@@ -55,9 +58,10 @@ public class LifPhotoFaces {
             String personDir = cmd.getOptionValue("person-dir");
             boolean dryRun = cmd.hasOption("dry-run");
             String sinceDate = cmd.getOptionValue("since-date");
+            boolean debugMode = cmd.hasOption("debug");
 
             // Config object (expand as needed)
-            PhotoFacesConfig config = new PhotoFacesConfig(imageDir, personDir, dryRun, sinceDate);
+            PhotoFacesConfig config = new PhotoFacesConfig(imageDir, personDir, dryRun, sinceDate,debugMode);
 
             if ("detect".equalsIgnoreCase(mode)) {
                 FaceDetectionService detection = new FaceDetectionService(config);

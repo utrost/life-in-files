@@ -1,20 +1,24 @@
 package org.trostheide.lif.photofaces;
 
+
+import org.slf4j.Logger;
+import org.trostheide.lif.core.LoggerService;
+
 /**
  * Handles clustering of face embeddings to form proto-person groups.
  */
 public class FaceClusteringService {
-
+    private static final Logger log = LoggerService.getLogger(FaceClusteringService.class);
     public FaceClusteringService() {
-        // Add config or dependencies as needed
+
     }
 
     /**
      * Main method to cluster face embeddings and return cluster assignments.
      */
     public void runClustering() {
-        LoggerService.info("Starting face clustering.");
+        log.info("Starting face clustering.");
         // TODO: Load embeddings, run clustering algorithm (K-means/DBSCAN)
-        LoggerService.info("Face clustering completed.");
+        log.info("Face clustering completed.");
     }
 }

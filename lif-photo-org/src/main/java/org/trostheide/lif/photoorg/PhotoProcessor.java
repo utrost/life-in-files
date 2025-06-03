@@ -1,5 +1,6 @@
 package org.trostheide.lif.photoorg;
 
+import org.slf4j.Logger;
 import org.trostheide.lif.core.LoggerService;
 import org.trostheide.lif.core.LifIndexManager;
 
@@ -28,6 +29,7 @@ public class PhotoProcessor {
     private final LifIndexManager indexMgr;
     private final PhotoDecoder decoder;
     private final boolean dateOrder;
+    private static final Logger log = LoggerService.getLogger(PhotoProcessor.class);
 
     public PhotoProcessor(
             File sourceRootDir,
@@ -72,29 +74,29 @@ public class PhotoProcessor {
 
             // 3) Skip if exists
             if (outFile.exists()) {
-                logger.info("Skipping existing: " + outFile.getAbsolutePath());
+                log.info("Skipping existing: " + outFile.getAbsolutePath());
                 return;
             }
 
-            logger.info("Processing: " + srcFile.getAbsolutePath());
+            log.info("Processing: " + srcFile.getAbsolutePath());
 
             // 4) Raw mode? let Darktable write the JPEG directly (preserving EXIF)
             if (decoder instanceof DarktableDecoder) {
                 ((DarktableDecoder) decoder).convertTo(srcFile, outFilePath);
-                logger.info("Wrote (raw): " + outFile.getAbsolutePath());
+                log.info("Wrote (raw): " + outFile.getAbsolutePath());
 
             } else {
                 // JPEG mode: decode/resizer/Exif writer
                 BufferedImage img = decoder.decode(srcFile);
                 ImageIO.write(img, "jpg", outFile);
-                logger.info("Wrote (jpeg): " + outFile.getAbsolutePath());
+                log.info("Wrote (jpeg): " + outFile.getAbsolutePath());
             }
 
             // 5) Record in index
             indexMgr.writeIndexEntry(srcFile, outFile);
 
         } catch (Exception e) {
-            logger.error("Failed processing " + srcFile.getAbsolutePath(), e);
+            log.error("Failed processing " + srcFile.getAbsolutePath(), e);
         }
     }
 }

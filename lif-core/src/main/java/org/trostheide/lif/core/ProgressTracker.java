@@ -1,5 +1,7 @@
 package org.trostheide.lif.core;
 
+import org.slf4j.Logger;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -8,15 +10,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * configured correctly.
  */
 public class ProgressTracker {
-    private final LoggerService logger;
+    private static final Logger log = LoggerService.getLogger(ProgressTracker.class);
     private long totalWork;
     private final AtomicLong completed = new AtomicLong(0);
 
-    /**
-     * @param logger a LoggerService instance for output
-     */
-    public ProgressTracker(LoggerService logger) {
-        this.logger = logger;
+
+    public ProgressTracker() {
+        ;
     }
 
     /**
@@ -29,7 +29,7 @@ public class ProgressTracker {
         this.totalWork = totalWork;
         this.completed.set(0);
         String msg = formatMessage(0);
-        logger.info(msg);
+        log.info(msg);
         System.out.println(msg);
     }
 
@@ -41,7 +41,7 @@ public class ProgressTracker {
     public void step(long count) {
         long done = this.completed.addAndGet(count);
         String msg = formatMessage(done);
-        logger.info(msg);
+        log.info(msg);
         System.out.println(msg);
     }
 
@@ -51,7 +51,7 @@ public class ProgressTracker {
     public void onComplete() {
         this.completed.set(this.totalWork);
         String msg = formatMessage(this.totalWork);
-        logger.info(msg);
+        log.info(msg);
         System.out.println(msg);
     }
 

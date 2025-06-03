@@ -47,7 +47,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>org.trostheide.lif.photoorg.CLI</mainClass>
+                            <mainClass>org.trostheide.lif.photoorg.PhotoOrgCLI</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

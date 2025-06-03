@@ -15,6 +15,13 @@
     <name>LIF Photo Faces</name>
     <description>Face detection, clustering and person metadata for JPEG images in the Life in Files ecosystem.</description>
 
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>com.github.openpnp:opencvo</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <!-- lif-core for shared utilities -->
         <dependency>
@@ -132,7 +139,7 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>org.trostheide.lif.photofaces.LifPhotoFaces</mainClass>
+                                    <mainClass>org.trostheide.lif.photofaces.LifPhotoFacesCLI</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
