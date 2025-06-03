@@ -25,7 +25,6 @@ import java.time.ZoneId;
 public class PhotoProcessor {
     private final Path sourceRoot;
     private final Path targetRoot;
-    private final LoggerService logger;
     private final LifIndexManager indexMgr;
     private final PhotoDecoder decoder;
     private final boolean dateOrder;
@@ -34,14 +33,12 @@ public class PhotoProcessor {
     public PhotoProcessor(
             File sourceRootDir,
             File targetRootDir,
-            LoggerService logger,
             LifIndexManager indexMgr,
             PhotoDecoder decoder,
             boolean dateOrder
     ) {
         this.sourceRoot = sourceRootDir.toPath();
         this.targetRoot = targetRootDir.toPath();
-        this.logger     = logger;
         this.indexMgr   = indexMgr;
         this.decoder    = decoder;
         this.dateOrder  = dateOrder;
