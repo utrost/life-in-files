@@ -1,5 +1,6 @@
 package org.trostheide.lif.photofaces;
 
+import org.opencv.imgproc.Imgproc;
 import org.trostheide.lif.photofaces.config.PhotoFacesConfig;
 import org.trostheide.lif.core.LoggerService;
 
@@ -8,6 +9,8 @@ import org.slf4j.Logger;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.objdetect.CascadeClassifier;
+import org.opencv.dnn.Dnn;
+import org.opencv.dnn.Net;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -27,6 +30,7 @@ import java.util.List;
 public class FaceDetectionService {
     private static final Logger log = LoggerService.getLogger(FaceDetectionService.class);
     private final PhotoFacesConfig config;
+    private Net faceEmbedder;
 
     static {
         try {
@@ -39,6 +43,14 @@ public class FaceDetectionService {
 
     public FaceDetectionService(PhotoFacesConfig config) {
         this.config = config;
+        try {
+            String embedderPath = getEmbedderModelPath();
+            this.faceEmbedder = Dnn.readNetFromTorch(embedderPath);
+            log.info("Loaded face embedder model from: " + embedderPath);
+        } catch (IOException e) {
+            log.error("Could not load face embedder model.", e);
+            this.faceEmbedder = null;
+        }
     }
 
     /**
@@ -53,6 +65,37 @@ public class FaceDetectionService {
         Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
         temp.toFile().deleteOnExit();
         return temp.toAbsolutePath().toString();
+    }
+
+    /**
+     * Loads the face embedding model file from resources and returns a path to a temporary file.
+     */
+    private static String getEmbedderModelPath() throws IOException {
+        InputStream in = FaceDetectionService.class.getResourceAsStream("/nn4.small2.v1.t7");
+        if (in == null) {
+            throw new FileNotFoundException("Resource nn4.small2.v1.t7 not found");
+        }
+        Path temp = Files.createTempFile("nn4.small2.v1", ".t7");
+        Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
+        temp.toFile().deleteOnExit();
+        return temp.toAbsolutePath().toString();
+    }
+
+    /**
+     * Extracts the embedding vector from a detected face region (expects normalized 96x96 face).
+     */
+    private float[] extractEmbedding(Mat faceRegionNormalized) {
+        // Prepare input blob
+        Mat inputBlob = Dnn.blobFromImage(faceRegionNormalized, 1.0/255, new Size(96, 96), new Scalar(0,0,0), false, false);
+
+        // Forward pass
+        faceEmbedder.setInput(inputBlob);
+        Mat output = faceEmbedder.forward();
+
+        float[] embedding = new float[(int)output.total()];
+        output.get(0, 0, embedding);
+
+        return embedding;
     }
 
     /**
@@ -80,6 +123,10 @@ public class FaceDetectionService {
             log.error("Failed to load Haar Cascade from " + cascadePath);
             return;
         }
+        if (this.faceEmbedder == null) {
+            log.error("Face embedder model was not loaded. Cannot extract embeddings.");
+            return;
+        }
 
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode detectionResults = mapper.createArrayNode();
@@ -101,6 +148,16 @@ public class FaceDetectionService {
         if (imageFiles.isEmpty()) {
             log.error("No images found in directory or subdirectories.");
             return;
+        }
+
+        // Ensure the personDir exists
+        String personDir = config.getPersonDir();
+        File personDirFile = new File(personDir);
+        if (!personDirFile.exists()) {
+            if (!personDirFile.mkdirs()) {
+                log.error("Failed to create person directory: " + personDir);
+                return;
+            }
         }
 
         int totalImages = 0;
@@ -141,11 +198,18 @@ public class FaceDetectionService {
             int faceIdx = 0;
             for (Rect rect : facesArray) {
                 Mat faceRegion = new Mat(image, rect);
+
+                // Resize face crop to 96x96 for both embedding and (optionally) saving PNG
+                Mat normalizedFace = new Mat();
+                Imgproc.resize(faceRegion, normalizedFace, new Size(96, 96));
+
                 ObjectNode faceNode = mapper.createObjectNode();
+
                 if (config.isDebugMode()) {
-                String faceCropName = imageFile.getName().replace(".jpg", "") + "_face" + faceIdx + ".png";
-                String faceCropPath = new File(imageFile.getParentFile(), faceCropName).getAbsolutePath();
-                Imgcodecs.imwrite(faceCropPath, faceRegion);
+                    String baseName = imageFile.getName().replaceAll("\\.jpe?g$", "");
+                    String faceCropName = baseName + "_face" + faceIdx + ".png";
+                    String faceCropPath = new File(personDirFile, faceCropName).getAbsolutePath();
+                    Imgcodecs.imwrite(faceCropPath, normalizedFace);  // Save the normalized 96x96 crop
                     faceNode.put("face_crop", faceCropPath);
                 }
 
@@ -155,6 +219,11 @@ public class FaceDetectionService {
                 faceNode.put("width", rect.width);
                 faceNode.put("height", rect.height);
 
+                // Extract and add embedding (from normalized crop)
+                float[] embedding = extractEmbedding(normalizedFace);
+                ArrayNode embeddingNode = mapper.createArrayNode();
+                for (float v : embedding) embeddingNode.add(v);
+                faceNode.set("embedding", embeddingNode);
 
                 facesNode.add(faceNode);
                 faceIdx++;

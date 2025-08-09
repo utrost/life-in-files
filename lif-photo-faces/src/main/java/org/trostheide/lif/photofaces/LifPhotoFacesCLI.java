@@ -10,10 +10,9 @@ public class LifPhotoFacesCLI {
 
         options.addOption("d", "debug", false, "Enable debug mode and save face images.");
 
-
         Option modeOption = Option.builder("m")
                 .longOpt("mode")
-                .desc("Mode: detect or sync")
+                .desc("Mode: detect, cluster, or sync")
                 .hasArg()
                 .argName("MODE")
                 .required()
@@ -61,11 +60,17 @@ public class LifPhotoFacesCLI {
             boolean debugMode = cmd.hasOption("debug");
 
             // Config object (expand as needed)
-            PhotoFacesConfig config = new PhotoFacesConfig(imageDir, personDir, dryRun, sinceDate,debugMode);
+            PhotoFacesConfig config = new PhotoFacesConfig(imageDir, personDir, dryRun, sinceDate, debugMode);
 
             if ("detect".equalsIgnoreCase(mode)) {
                 FaceDetectionService detection = new FaceDetectionService(config);
                 detection.runDetection();
+            } else if ("cluster".equalsIgnoreCase(mode)) {
+                FaceClusteringService clustering = new FaceClusteringService();
+                clustering.runClustering(imageDir);
+                // generate Markdown files from cluster results
+                PersonMarkdownGenerator mdGen = new PersonMarkdownGenerator();
+                mdGen.generateMarkdownFiles(imageDir, personDir);
             } else if ("sync".equalsIgnoreCase(mode)) {
                 MetadataSyncService sync = new MetadataSyncService(config);
                 sync.runSync();

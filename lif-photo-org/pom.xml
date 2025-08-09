@@ -16,10 +16,10 @@
     <dependencies>
         <!-- Core utilities -->
         <dependency>
-            <groupId>org.trostheide.lif</groupId>
-            <artifactId>lif-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+        <groupId>org.trostheide.lif</groupId>
+        <artifactId>lif-core</artifactId>
+        <version>${project.version}</version>
+    </dependency>
 
         <!-- Image processing -->
         <dependency>
