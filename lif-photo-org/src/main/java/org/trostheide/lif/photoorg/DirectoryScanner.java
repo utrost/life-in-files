@@ -1,8 +1,5 @@
 package org.trostheide.lif.photoorg;
 
-import org.slf4j.Logger;
-import org.trostheide.lif.core.LoggerService;
-
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,12 +10,11 @@ import java.util.stream.Collectors;
 
 /**
  * Recursively scans a directory for files:
- *  - filtered by creation/modification date (since)
- *  - matching one of the given extensions
- *  - optionally including video files
+ * - filtered by creation/modification date (since)
+ * - matching one of the given extensions
+ * - optionally including video files
  */
 public class DirectoryScanner {
-    private static final Logger log = LoggerService.getLogger(DirectoryScanner.class);
 
     private static final Set<String> DEFAULT_IMAGE_EXTS = Set.of(
             "jpg","jpeg","png","tif","tiff",
@@ -39,9 +35,9 @@ public class DirectoryScanner {
      * @param copyVideo   if true, include common video extensions
      */
     public DirectoryScanner(
-                            String since,
-                            String extsCsv,
-                            boolean copyVideo) {
+            String since,
+            String extsCsv,
+            boolean copyVideo) {
 
 
         // parse 'since' timestamp
@@ -50,8 +46,8 @@ public class DirectoryScanner {
             try {
                 tmp = Instant.parse(since);
             } catch (DateTimeParseException e) {
-                log.error("Invalid --since timestamp, ignoring filter: " + since,
-                        e);
+                System.err.println("Invalid --since timestamp, ignoring filter: " + since);
+                e.printStackTrace(System.err);
                 tmp = null;
             }
             this.sinceInstant = tmp;
@@ -77,19 +73,18 @@ public class DirectoryScanner {
 
     /**
      * Walks sourceDir recursively and returns a list of files that:
-     *  - are modified on/after 'sinceInstant' (if set)
-     *  - have an extension in the 'extensions' set
+     * - are modified on/after 'sinceInstant' (if set)
+     * - have an extension in the 'extensions' set
      */
     public List<File> scan(File sourceDir) {
         if (!sourceDir.isDirectory()) {
-            log.error("Source is not a directory: " + sourceDir,
-                    new IllegalArgumentException(sourceDir.toString()));
+            System.err.println("Source is not a directory: " + sourceDir);
             return Collections.emptyList();
         }
 
         List<File> result = new ArrayList<>();
         scanRecursive(sourceDir.toPath(), result);
-        log.info("Queued " + result.size() + " files for processing");
+        System.out.println("Queued " + result.size() + " files for processing");
         return result;
     }
 
@@ -101,11 +96,12 @@ public class DirectoryScanner {
                     scanRecursive(path, out);
                 } else if (matches(f)) {
                     out.add(f);
-                    log.info("  + " + f.getAbsolutePath());
+                    System.out.println("  + " + f.getAbsolutePath());
                 }
             });
         } catch (Exception e) {
-            log.error("Error scanning directory: " + dir, e);
+            System.err.println("Error scanning directory: " + dir);
+            e.printStackTrace(System.err);
         }
     }
 

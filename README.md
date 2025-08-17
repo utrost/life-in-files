@@ -73,8 +73,8 @@ Provides utilities and base classes for all tools:
 |----------------------|---------------------------------------------------------------------|--------------|
 | `lif-photo-org`      | Organizes, resizes, and converts photos from RAW to JPEG            | In Development |
 | `lif-photo-ocr`      | OCR text extraction from image files                                | Planned      |
-| `lif-photo-faces`    | Detects and clusters faces, enables tagging and metadata sync       | Planned      |
-| `lif-photo-tagging`  | AI-based captioning and keyword tagging using OpenAI or local model | Planned      |
+| `lif-photo-faces`    | Detects and clusters faces, enables tagging and metadata sync       | In Development |
+| `lif-photo-tagging`  | AI-based captioning and keyword tagging using OpenAI or local model | In Development |
 | `lif-docs`           | Organizes scanned PDFs and documents by type, year, source          | Planned      |
 | `lif-ebooks`         | Extracts metadata and organizes EPUB/PDF files                      | Planned      |
 | `lif-music`          | Cleans and organizes music metadata, sorts by album/artist/year     | Planned      |

@@ -49,7 +49,6 @@
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
                 <version>${logback.version}</version>
-                <scope>runtime</scope>
             </dependency>
 
             <!-- Testing -->
@@ -91,8 +90,9 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven.compiler.plugin.version}</version>
                     <configuration>
-                        <source>${java.version}</source>
-                        <target>${java.version}</target>
+                        <release>17</release>
+                        <fork>true</fork>
+                        <executable>${java.home}/bin/javac</executable>
                     </configuration>
                 </plugin>
             </plugins>

@@ -1,42 +1,39 @@
 package org.trostheide.lif.core;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory; // Use standard SLF4J factory
 
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Simple progress reporter that logs "completed/total (percent%)" on each step.
- * Also prints directly to stdout so you can see progress even if Logback isn’t
- * configured correctly.
  */
 public class ProgressTracker {
-    private static final Logger log = LoggerService.getLogger(ProgressTracker.class);
+    // Use standard LoggerFactory, not the custom LoggerService
+    private static final Logger log = LoggerFactory.getLogger(ProgressTracker.class);
     private long totalWork;
     private final AtomicLong completed = new AtomicLong(0);
 
-
+    /**
+     * No-argument constructor.
+     */
     public ProgressTracker() {
-        ;
+        // The constructor is now empty as it should be.
     }
 
     /**
      * Initialize the tracker with the total units of work.
-     * Resets internal counters.
-     *
-     * @param totalWork total number of steps/tasks
      */
     public void startTask(long totalWork) {
         this.totalWork = totalWork;
         this.completed.set(0);
         String msg = formatMessage(0);
         log.info(msg);
-        System.out.println(msg);
+        System.out.println(msg); // Also print to stdout for visibility
     }
 
     /**
-     * Advance the completed count by the given amount and log progress.
-     *
-     * @param count number of tasks just completed (often 1)
+     * Advance the completed count by the given amount.
      */
     public void step(long count) {
         long done = this.completed.addAndGet(count);
@@ -55,9 +52,6 @@ public class ProgressTracker {
         System.out.println(msg);
     }
 
-    /**
-     * Formats the progress message.
-     */
     private String formatMessage(long done) {
         int percent = totalWork > 0
                 ? (int)((done * 100) / totalWork)

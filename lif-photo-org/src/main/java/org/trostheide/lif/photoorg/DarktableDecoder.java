@@ -1,5 +1,9 @@
 package org.trostheide.lif.photoorg;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.trostheide.lif.core.LoggerService;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
@@ -9,26 +13,24 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Uses darktable-cli to convert & resize images, preserving metadata.
- * Provides a convertTo(...) method for raw mode to write directly to the final output file.
+ * Uses darktable-cli to convert & resize images in parallel, preserving metadata.
+ * Each process runs with a temporary, isolated config directory to avoid database locks.
  */
 public class DarktableDecoder implements PhotoDecoder {
-    private static final Object DT_LOCK = new Object();
+    private static final Logger log = LoggerFactory.getLogger(DarktableDecoder.class);
+
+
     private final String dtBinary;
     private final int longSide;
     private final int quality;
 
-    /**
-     * @param dtBinary full path or command name for darktable-cli
-     * @param longSide max length of the longer side in pixels (<=0 = no resize)
-     * @param quality  JPEG quality percentage (1-100)
-     * @throws IOException if temp directory cannot be created
-     */
-    public DarktableDecoder(String dtBinary, int longSide, int quality) throws IOException {
+    public DarktableDecoder(String dtBinary, int longSide, int quality) {
         this.dtBinary = dtBinary;
         this.longSide  = longSide;
         this.quality   = quality;
@@ -36,66 +38,64 @@ public class DarktableDecoder implements PhotoDecoder {
 
     /**
      * Raw mode entrypoint: runs darktable-cli to convert the source file
-     * into a JPEG at the given outputPath (parent directory must exist).
+     * into a JPEG at the given outputPath.
      *
      * @param srcFile    source RAW or image file
-     * @param outputPath desired .jpg file path (name must end with .jpg)
+     * @param outputPath desired .jpg file path
      */
     public void convertTo(File srcFile, Path outputPath) throws Exception {
-        synchronized (DT_LOCK) {
+        // Create a unique temporary directory for this process's config
+        Path tempConfigDir = Files.createTempDirectory("lif-darktable-config-" + UUID.randomUUID());
+
+        try {
             // Ensure output directory exists
             Path outDir = outputPath.getParent();
             Files.createDirectories(outDir);
 
-            // Build command: dtBinary <input> <outDir> [--width W --height H] [--core --conf plugins/imageio/format/jpeg/quality=Q]
+            // Build command with isolated config directory
             List<String> cmd = new ArrayList<>();
             cmd.add(dtBinary);
             cmd.add(srcFile.getAbsolutePath());
-            cmd.add(outDir.toString());
+            cmd.add(outputPath.toString()); // Directly specify the output file
             if (longSide > 0) {
                 cmd.add("--width");  cmd.add(String.valueOf(longSide));
                 cmd.add("--height"); cmd.add(String.valueOf(longSide));
             }
+            cmd.add("--core");
+            cmd.add("--configdir");
+            cmd.add(tempConfigDir.toString());
+            cmd.add("--cachedir");
+            cmd.add(tempConfigDir.toString());
+
             if (quality >= 1 && quality <= 100) {
-                cmd.add("--core");
                 cmd.add("--conf");
                 cmd.add("plugins/imageio/format/jpeg/quality=" + quality);
             }
 
-            // Debug print
-            String debug = cmd.stream()
-                    .map(arg -> "\"" + arg + "\"")
-                    .collect(Collectors.joining(" "));
-            System.out.println("DEBUG [DarktableDecoder] Executing: " + debug);
+            // Execute the process
+            Process proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
 
-            // Execute
-            Process proc = new ProcessBuilder(cmd)
-                    .redirectErrorStream(true)
-                    .start();
-            String output = new BufferedReader(
-                    new InputStreamReader(proc.getInputStream()))
+            // It's good practice to consume the output stream to prevent the process buffer from filling up
+            String output = new BufferedReader(new InputStreamReader(proc.getInputStream()))
                     .lines().collect(Collectors.joining("\n"));
+
             int exit = proc.waitFor();
-
-            System.out.println("DEBUG [DarktableDecoder] exit code: " + exit);
-            System.out.println(output);
-
             if (exit != 0) {
-                throw new IllegalStateException("darktable-cli failed (exit=" + exit + ")");
+                log.error("darktable-cli failed for {} with exit code {}. Output:\n{}", srcFile.getName(), exit, output);
+                throw new IOException("darktable-cli failed (exit=" + exit + ")");
             }
 
-            // Note: darktable-cli writes <basename>.jpg into outDir;
-            // outputPath should match outDir/<basename>.jpg
-            Path expected = outDir.resolve(
-                    srcFile.getName().replaceAll("\\.[^.]+$", "") + ".jpg"
-            );
-            if (!Files.exists(expected)) {
-                throw new IllegalStateException("Expected output not found: " + expected);
+            if (!Files.exists(outputPath)) {
+                log.error("Expected output not found: {}. Output:\n{}", outputPath, output);
+                throw new IOException("Expected output not found: " + outputPath);
             }
-            // If outputPath differs (e.g. different extension or name), rename
-            if (!expected.equals(outputPath)) {
-                Files.move(expected, outputPath);
-            }
+
+        } finally {
+            // Cleanup: Recursively delete the temporary config directory
+            Files.walk(tempConfigDir)
+                    .sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(File::delete);
         }
     }
 

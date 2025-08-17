@@ -16,10 +16,16 @@
     <dependencies>
         <!-- Core utilities -->
         <dependency>
-        <groupId>org.trostheide.lif</groupId>
-        <artifactId>lif-core</artifactId>
-        <version>${project.version}</version>
-    </dependency>
+            <groupId>org.trostheide.lif</groupId>
+            <artifactId>lif-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Logging implementation (needed for the final JAR) -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
 
         <!-- Image processing -->
         <dependency>
@@ -34,6 +40,12 @@
             <version>0.4.14</version>
         </dependency>
 
+        <!-- Added for JSON handling in EventManager -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -51,6 +63,16 @@
                         </manifest>
                     </archive>
                 </configuration>
+                <!-- This section binds the assembly plugin to the package phase -->
+                <executions>
+                    <execution>
+                        <id>make-assembly</id> <!-- this is used for inheritance merges -->
+                        <phase>package</phase> <!-- bind to the packaging phase -->
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
